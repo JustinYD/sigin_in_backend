@@ -106,6 +106,7 @@ def updateInfo():
         cur.execute(sql)
         result = {'msg': '已更新数据！', 'status': 200}
         cur.execute(sql)
+        # hh
         db.commit()
     except Exception as e:
         logging.exception(e)
