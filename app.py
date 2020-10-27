@@ -172,6 +172,56 @@ def getTeacherClass():
     returnData = jsonify(result)
     return returnData
 
+# 学生获取课程列表
+@app.route('/getStudentClass', methods=['post'])
+def getStudentClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    student_id = json_data.get("openid")
+    sql_openid = "select * from sign_my_class where student_id='%s'" % student_id
+    try:
+        cur = db.cursor()
+        if (cur.execute(sql_openid)):
+            result = {'msg': '课程查询成功！', 'status': 200, 'data':cur.fetchall()}
+        else:
+            result = {'msg': '未添加课程！', 'status': 201}
+    except Exception as e:
+        print('异常信息' + e.msg)
+        result = {'msg': '查询失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 学生搜索课程
+@app.route('/searchClass', methods=['post'])
+def searchClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    class_id = json_data.get("class_id")
+    sql_openid = "select * from sign_class where id='%s'" % class_id
+    try:
+        cur = db.cursor()
+        if (cur.execute(sql_openid)):
+            result = {'msg': '课程查询成功！', 'status': 200, 'data':cur.fetchall()}
+        else:
+            result = {'msg': '未找到课程！', 'status': 201}
+    except Exception as e:
+        print('异常信息' + e.msg)
+        result = {'msg': '查询失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
 # 老师创建课程
 @app.route('/createClass', methods=['post'])
 def createClass():
