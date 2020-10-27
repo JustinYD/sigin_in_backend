@@ -11,6 +11,8 @@ app = Flask(__name__)
 # 设置全局跨域处理
 
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
+
+# 学生注册判断接口
 @app.route('/regStu',methods=['post'])
 def regStu():
     db = pymysql.connect(host='121.36.46.96',
@@ -46,6 +48,8 @@ def regStu():
     db.close()
     returnData=jsonify(result)
     return returnData
+
+# 老师注册判断接口
 @app.route('/regTea', methods=['post'])
 def regTea():
     db = pymysql.connect(host='121.36.46.96',
@@ -78,6 +82,8 @@ def regTea():
     db.close()
     returnData = jsonify(result)
     return returnData
+
+# 更新学生或教师信息
 @app.route('/updateInfo', methods=['post'])
 def updateInfo():
     db = pymysql.connect(host='121.36.46.96',
@@ -114,6 +120,8 @@ def updateInfo():
     db.close()
     returnData = jsonify(result)
     return returnData
+
+# 通过openid获取学生/教师信息
 @app.route('/getMyRole', methods=['post'])
 def getMyRole():
     db = pymysql.connect(host='121.36.46.96',
@@ -135,6 +143,120 @@ def getMyRole():
     except Exception as e:
         print('异常信息'+e.msg)
         result = {'msg': '注册失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 老师获取课程列表
+@app.route('/getTeacherClass', methods=['post'])
+def getTeacherClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    teacher_openid = json_data.get("openid")
+    sql_openid = "select * from sign_class where teacher_openid='%s'" % teacher_openid
+    try:
+        cur = db.cursor()
+        if (cur.execute(sql_openid)):
+            result = {'msg': '课程查询成功！', 'status': 200, 'data':cur.fetchall()}
+        else:
+            result = {'msg': '未创建任何课程！', 'status': 201}
+    except Exception as e:
+        print('异常信息' + e.msg)
+        result = {'msg': '查询失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 老师创建课程
+@app.route('/createClass', methods=['post'])
+def createClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    teacher_openid = json_data.get("openid")
+    classname = json_data.get("classname")
+    teacher_name = json_data.get("name")
+    status=False
+    values = (teacher_openid, classname, status,teacher_name)
+    sql = 'insert into sign_class (teacher_openid, classname, status,teacher_name) values(%s, %s, %s,%s)'
+    try:
+        cur = db.cursor()
+        if(classname != ''):
+            cur.execute(sql, values)
+            db.commit()
+            result = {'msg': '注册成功！', 'status': 200}
+        else:result = {'msg': '课程名字为空！', 'status': 404}
+    except Exception as e:
+        print('异常信息'+e.msg)
+        result = {'msg': '创建失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 老师删除课程
+@app.route('/deleteClass', methods=['post'])
+def deleteClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    teacher_openid = json_data.get("openid")
+    id = json_data.get("id")
+    values = (teacher_openid, id)
+    sql = "delete from sign_class where id='%s'"%id
+    try:
+        cur = db.cursor()
+        if(id != ''):
+            cur.execute(sql)
+            db.commit()
+            result = {'msg': '删除成功！', 'status': 200}
+        else:result = {'msg': '课程名字为空！', 'status': 404}
+    except Exception as e:
+        print('异常信息'+e.msg)
+        result = {'msg': '创建失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 老师更新课程/状态
+@app.route('/updateClass', methods=['post'])
+def updateClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    classname = json_data.get("classname")
+    id = json_data.get("id")
+    status=json_data.get("status")
+    if(status):
+        sql = "update sign_class set classname='%s',status=TRUE where id='%s'"%(classname,id)
+    else:
+        sql = "update sign_class set classname='%s',status=FALSE where id='%s'" % (classname, id)
+    try:
+        cur = db.cursor()
+        if(id != ''):
+            cur.execute(sql)
+            db.commit()
+            result = {'msg': '修改成功！', 'status': 200}
+        else:result = {'msg': '课程名字为空！', 'status': 404}
+    except Exception as e:
+        print('异常信息'+e.msg)
+        result = {'msg': '创建失败！', 'status': 404}
     db.close()
     returnData = jsonify(result)
     return returnData
