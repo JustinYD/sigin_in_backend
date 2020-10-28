@@ -266,16 +266,18 @@ def deleteClass():
     id = json_data.get("id")
     values = (teacher_openid, id)
     sql = "delete from sign_class where id='%s'"%id
+    sql_student = "delete from sign_my_class where class_id='%s'"%id
     try:
         cur = db.cursor()
         if(id != ''):
             cur.execute(sql)
+            cur.execute(sql_student)
             db.commit()
             result = {'msg': '删除成功！', 'status': 200}
         else:result = {'msg': '课程名字为空！', 'status': 404}
     except Exception as e:
         print('异常信息'+e.msg)
-        result = {'msg': '创建失败！', 'status': 404}
+        result = {'msg': '删除失败！', 'status': 404}
     db.close()
     returnData = jsonify(result)
     return returnData
@@ -297,16 +299,90 @@ def updateClass():
         sql = "update sign_class set classname='%s',status=TRUE where id='%s'"%(classname,id)
     else:
         sql = "update sign_class set classname='%s',status=FALSE where id='%s'" % (classname, id)
+    sql_student = "update sign_my_class set class_name='%s' where class_id='%s'" % (classname, id)
     try:
         cur = db.cursor()
         if(id != ''):
             cur.execute(sql)
+            cur.execute(sql_student)
             db.commit()
             result = {'msg': '修改成功！', 'status': 200}
         else:result = {'msg': '课程名字为空！', 'status': 404}
     except Exception as e:
         print('异常信息'+e.msg)
         result = {'msg': '创建失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 学生添加课程
+@app.route('/studentAddClass', methods=['post'])
+def studentAddClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    teacher_id = json_data.get("teacher_id")
+    teacher_name = json_data.get("teacher_name")
+    student_id = json_data.get("student_id")
+    student_name = json_data.get("student_name")
+    class_id = json_data.get("class_id")
+    class_name = json_data.get("class_name")
+    majorName = json_data.get("majorName")
+    try:
+        cur = db.cursor()
+        getStatus="select status from sign_class where id='%s'"%class_id
+        if(cur.execute(getStatus)):
+            if (cur.fetchall()[0][0]):
+                status = True
+            else:
+                status = False
+            values = (teacher_id, teacher_name, student_id, student_name, class_id, class_name, majorName, status)
+            sql = 'insert into sign_my_class (teacher_id, teacher_name, student_id, student_name, class_id, class_name, majorName,status) values(%s, %s, %s,%s,%s, %s, %s,%s)'
+            getInClass = "select * from sign_my_class where student_id='%s' and class_id='%s'" % (student_id, class_id)
+            if (cur.execute(getInClass)):
+                result = {'msg': '已添加过该课程', 'status': 404}
+            else:
+                if (cur.execute(sql, values)):
+                    db.commit()
+                    result = {'msg': '添加课程成功', 'status': 200}
+                else:
+                    result = {'msg': '添加课程失败', 'status': 404}
+        else:result = {'msg': '未找到该课程', 'status': 404}
+    except Exception as e:
+        print('异常信息'+e.msg)
+        result = {'msg': '服务器错误！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 学生删除收藏课程
+# 老师删除课程
+@app.route('/deleteStudentClass', methods=['post'])
+def deleteStudentClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    student_id = json_data.get("student_id")
+    class_id = json_data.get("class_id")
+    sql_student = "delete from sign_my_class where student_id='%s' and class_id='%s'"%(student_id,class_id)
+    try:
+        cur = db.cursor()
+        if(class_id != ''):
+            cur.execute(sql_student)
+            db.commit()
+            result = {'msg': '删除成功！', 'status': 200}
+        else:result = {'msg': '课程名字为空！', 'status': 404}
+    except Exception as e:
+        print('异常信息'+e.msg)
+        result = {'msg': '删除失败！', 'status': 404}
     db.close()
     returnData = jsonify(result)
     return returnData
