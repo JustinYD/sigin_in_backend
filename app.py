@@ -297,9 +297,10 @@ def updateClass():
     status=json_data.get("status")
     if(status):
         sql = "update sign_class set classname='%s',status=TRUE where id='%s'"%(classname,id)
+        sql_student = "update sign_my_class set class_name='%s', status=TRUE where class_id='%s'" % (classname, id)
     else:
         sql = "update sign_class set classname='%s',status=FALSE where id='%s'" % (classname, id)
-    sql_student = "update sign_my_class set class_name='%s' where class_id='%s'" % (classname, id)
+        sql_student = "update sign_my_class set class_name='%s', status=FALSE where class_id='%s'" % (classname, id)
     try:
         cur = db.cursor()
         if(id != ''):
@@ -308,6 +309,73 @@ def updateClass():
             db.commit()
             result = {'msg': '修改成功！', 'status': 200}
         else:result = {'msg': '课程名字为空！', 'status': 404}
+    except Exception as e:
+        print('异常信息'+e.msg)
+        result = {'msg': '创建失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+# 老师开始/结束打卡
+@app.route('/startOrStopClass', methods=['post'])
+def startOrStopClass():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    id = json_data.get("id")
+    status=json_data.get("status")
+    startTag=json_data.get("startTag")
+    tag=(startTag)
+    print(startTag)
+    try:
+        cur = db.cursor()
+        get_id = db.cursor()
+        get_data = db.cursor()
+        add_student_list = db.cursor()
+        if (status):
+            sql_student = "update sign_my_class set status=TRUE where class_id='%s'" % id
+            get_student_id = "select student_id from sign_my_class where class_id='%s'" % id
+            sql = "update sign_class set status=TRUE where id='%s'" % id
+        else:
+            sql_student = "update sign_my_class set status=FALSE where class_id='%s'" % id
+            get_student_id = "select student_id from sign_my_class where class_id='%s'" % id
+            sql = "update sign_class set status=FALSE where id='%s'" % id
+        if (get_id.execute(get_student_id)):
+            temp = get_id.fetchall()
+            temp_id_list = []
+            for i in temp:
+                temp_id_list.append(i[0])
+            student_id_list = tuple(temp_id_list)
+            if len(student_id_list)==1:
+                get_data.execute("select * from sign_my_class where student_id= '%s' and class_id ='%s'"%(student_id_list[0], id))
+                if(status):
+                    sql_add = "insert into sign_history(`class_id`, `class_name`, `teacher_id`, `teacher_name`," \
+                              " `student_id`, `student_name`,`sign_status`,`majorName`,`startTag`) select `class_id`, `class_name`, `teacher_id`, `teacher_name`," \
+                              " `student_id`, `student_name`,FALSE,`majorName`, '%s' from sign_my_class where student_id= '%s' and class_id ='%s'" % (
+                              student_id_list[0], id,startTag)
+                else:sql_add = "select student_id from sign_my_class where class_id='%s'" % id
+            else:
+                get_data.execute("select * from sign_my_class where student_id in" + str(student_id_list) + "and class_id = " + str(id))
+                if(status):
+                    sql_add = "insert into sign_history(`class_id`, `class_name`, `teacher_id`, `teacher_name`," \
+                              " `student_id`, `student_name`,`sign_status`,`majorName`,`startTag`) select `class_id`, `class_name`, `teacher_id`, `teacher_name`," \
+                              " `student_id`, `student_name`,FALSE,`majorName`, %s from sign_my_class where student_id in" + str(
+                        student_id_list) + "and class_id = " + str(id)
+                else:sql_add = "select student_id from sign_my_class where class_id='%s'" % id
+            if (id != ''):
+                cur.execute(sql_student)
+                cur.execute(sql)
+                if(cur.execute(sql_add,tag)):
+                    db.commit()
+                    result = {'msg': '开启成功！', 'status': 200}
+            else:
+                result = {'msg': '课程名字为空！', 'status': 404}
+        else:
+            result = {'msg': '未有学生加入！', 'status': 404}
     except Exception as e:
         print('异常信息'+e.msg)
         result = {'msg': '创建失败！', 'status': 404}
