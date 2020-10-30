@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 # 引入flask框架，jsonify格式转换，网络请求request库，jieba库，数据库连接pymysql，flask_cors跨域处理
+import datetime
 import json
 import logging
 
@@ -382,8 +383,8 @@ def startOrStopClass():
                 if(status):
                     sql = "update sign_class set status=TRUE where id='%s'" % id
                     sql_add = "insert into sign_history(`class_id`, `class_name`, `teacher_id`, `teacher_name`," \
-                              " `student_id`, `student_name`,`sign_status`,`majorName`,`startTag`,`student_status`,`mlat`,`mlng`) select `class_id`, `class_name`, `teacher_id`, `teacher_name`," \
-                              " `student_id`, `student_name`,TRUE,`majorName`, %s ,FALSE,%s,%s from sign_my_class where student_id= '%s' and class_id ='%s'" % (
+                              " `student_id`, `student_name`,`sign_status`,`majorName`,`startTag`,`student_status`,`mlat`,`mlng`,`student_number`) select `class_id`, `class_name`, `teacher_id`, `teacher_name`," \
+                              " `student_id`, `student_name`,TRUE,`majorName`, %s ,FALSE,%s,%s,`student_number` from sign_my_class where student_id= '%s' and class_id ='%s'" % (
                               student_id_list[0], id,startTag,mlat,mlng)
                 else:
                     sql = "update sign_class set status=FALSE where id='%s'" % id
@@ -396,8 +397,8 @@ def startOrStopClass():
             else:
                 if(status):
                     sql_add = "insert into sign_history(`class_id`, `class_name`, `teacher_id`, `teacher_name`," \
-                              " `student_id`, `student_name`,`sign_status`,`majorName`,`startTag`,`student_status`,`mlat`,`mlng`) select `class_id`, `class_name`, `teacher_id`, `teacher_name`," \
-                              " `student_id`, `student_name`,TRUE,`majorName`, %s ,FALSE,%s,%s from sign_my_class where student_id in" + str(
+                              " `student_id`, `student_name`,`sign_status`,`majorName`,`startTag`,`student_status`,`mlat`,`mlng`,`student_number`) select `class_id`, `class_name`, `teacher_id`, `teacher_name`," \
+                              " `student_id`, `student_name`,TRUE,`majorName`, %s ,FALSE,%s,%s,`student_number` from sign_my_class where student_id in" + str(
                         student_id_list) + "and class_id = " + str(id)
                     sql = "update sign_class set status=TRUE where id='%s'" % id
                     cur.execute(sql)
@@ -435,6 +436,7 @@ def studentAddClass():
     teacher_name = json_data.get("teacher_name")
     student_id = json_data.get("student_id")
     student_name = json_data.get("student_name")
+    student_number = json_data.get("student_number")
     class_id = json_data.get("class_id")
     class_name = json_data.get("class_name")
     majorName = json_data.get("majorName")
@@ -446,8 +448,8 @@ def studentAddClass():
                 status = True
             else:
                 status = False
-            values = (teacher_id, teacher_name, student_id, student_name, class_id, class_name, majorName, status)
-            sql = 'insert into sign_my_class (teacher_id, teacher_name, student_id, student_name, class_id, class_name, majorName,status) values(%s, %s, %s,%s,%s, %s, %s,%s)'
+            values = (teacher_id, teacher_name, student_id, student_name, class_id, class_name, majorName, status,student_number)
+            sql = 'insert into sign_my_class (teacher_id, teacher_name, student_id, student_name, class_id, class_name, majorName,status,student_number) values(%s, %s, %s,%s,%s, %s, %s,%s,%s)'
             getInClass = "select * from sign_my_class where student_id='%s' and class_id='%s'" % (student_id, class_id)
             if (cur.execute(getInClass)):
                 result = {'msg': '已添加过该课程', 'status': 404}
@@ -507,13 +509,15 @@ def sign_in():
     class_id = json_data.get("class_id")
     teacher_id = json_data.get("teacher_id")
     startTag = json_data.get("startTag")
-    sign_in = "update sign_history set student_status=TRUE where class_id='%s' and teacher_id='%s' and startTag='%s' and student_id='%s'" %(class_id,teacher_id,startTag,student_id)
+    time = datetime.datetime.now()
+    sign_in = "update sign_history set student_status=TRUE, sign_time='%s' where class_id='%s' and teacher_id='%s' and startTag='%s' and student_id='%s'" %(time,class_id,teacher_id,startTag,student_id)
     try:
         cur = db.cursor()
         if (cur.execute(sign_in)):
-            result = {'msg': '课程查询成功！', 'status': 200, 'data':cur.fetchall()}
+            db.commit()
+            result = {'msg': '课程打卡成功！', 'status': 200}
         else:
-            result = {'msg': '没有需要打卡的课程！', 'status': 201}
+            result = {'msg': '课程打卡失败！', 'status': 201}
     except Exception as e:
         print('异常信息' + e.msg)
         result = {'msg': '查询失败！', 'status': 404}
@@ -521,7 +525,7 @@ def sign_in():
     returnData = jsonify(result)
     return returnData
 
-# 获取打卡距离
+# 核心功能！！！获取打卡距离判断是否可以打卡
 @app.route('/getdistance',methods=['post'])
 def getdistance():
     data = request.get_data()
@@ -541,6 +545,91 @@ def getdistance():
     result = {'data': dis1, 'status': 200}
     distance = jsonify(result)
     return distance
+
+
+@app.route('/getStudentSignHistory', methods=['post'])
+def getStudentSignHistory():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    student_id = json_data.get("openid")
+    sign_in = "select * from sign_history where student_id='%s'"%student_id
+    try:
+        cur = db.cursor()
+        if (cur.execute(sign_in)):
+            result = {'msg': '查询成功！', 'status': 200, 'data':cur.fetchall()}
+        else:
+            result = {'msg': '查询失败！', 'status': 201}
+    except Exception as e:
+        print('异常信息' + e.msg)
+        result = {'msg': '查询失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+
+@app.route('/getItemHistory', methods=['post'])
+def getItemHistory():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    class_id = json_data.get("class_id")
+    teacher_id = json_data.get("teacher_id")
+    startTag = "select * from sign_history where class_id='%s' and teacher_id='%s'"%(class_id,teacher_id)
+    try:
+        cur = db.cursor()
+        if (cur.execute(startTag)):
+            getTags="select startTag,createtime, count(*) as count from sign_history where class_id='%s' group by startTag having count>0"%class_id
+            cur.execute(getTags)
+            result = {'msg': '查询成功！', 'status': 200, 'data': cur.fetchall()}
+        else:
+            result = {'msg': '该课程没有记录！', 'status': 201}
+    except Exception as e:
+        print('异常信息' + e.msg)
+        result = {'msg': '查询失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
+
+@app.route('/getItemDetail', methods=['post'])
+def getItemDetail():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    class_id = json_data.get("class_id")
+    teacher_id = json_data.get("teacher_id")
+    startTag = json_data.get('startTag')
+    detail = "select * from sign_history where class_id='%s' and teacher_id='%s' and startTag='%s'"%(class_id,teacher_id,startTag)
+    try:
+        cur = db.cursor()
+        getMajor = db.cursor()
+        getStatus = db.cursor()
+        if (cur.execute(detail)):
+            getTags="select majorName, count(*) as count from sign_history where class_id='%s' and teacher_id='%s' and startTag='%s' group by majorName having count>0"%(class_id,teacher_id,startTag)
+            status = "select student_status, count(*) as count from sign_history where class_id='%s' and teacher_id='%s' and startTag='%s' group by student_status having count>0"%(class_id, teacher_id, startTag)
+            getMajor.execute(getTags)
+            getStatus.execute(status)
+            result = {'msg': '查询成功！', 'status': 200, 'data': cur.fetchall(), 'major_data':getMajor.fetchall(), 'status_data':getStatus.fetchall()}
+        else:
+            result = {'msg': '该课程没有记录！', 'status': 201}
+    except Exception as e:
+        print('异常信息' + e.msg)
+        result = {'msg': '查询失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
 
 #项目启动入口
 if __name__ == '__main__':
