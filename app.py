@@ -571,6 +571,27 @@ def getStudentSignHistory():
     returnData = jsonify(result)
     return returnData
 
+# 获取微信openid
+@app.route('/getOpenid', methods=['post'])
+def getOpenid():
+    db = pymysql.connect(host='121.36.46.96',
+                         port=3306,
+                         user='root',
+                         password='151874DZlw',
+                         db='sign_in')
+    data = request.get_data()
+    json_data = json.loads(data.decode("UTF-8"))
+    try:
+        res = requests.post(url="https://api.weixin.qq.com/sns/jscode2session", data=json_data)
+        temp=res.content.decode('utf-8')
+        openid=json.loads(temp)
+        result = {'msg': '查询成功！', 'status': 200, 'data':openid}
+    except Exception as e:
+        print('异常信息' + e.msg)
+        result = {'msg': '查询失败！', 'status': 404}
+    db.close()
+    returnData = jsonify(result)
+    return returnData
 
 @app.route('/getItemHistory', methods=['post'])
 def getItemHistory():
